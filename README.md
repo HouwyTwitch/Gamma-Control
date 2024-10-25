@@ -1,2 +1,16 @@
-# Gamma-Control
+# Gamma Control
+
 A simple application for adjusting the gamma settings of your display using Python.
+
+## Features
+
+- Easily toggle between different gamma settings.
+- Customizable key bindings through an INI configuration file.
+- Lightweight and efficient.
+
+## Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/gamma_project.git
+   cd gamma_project

@@ -12,5 +12,5 @@ A simple application for adjusting the gamma settings of your display using Pyth
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/gamma_project.git
+   git clone https://github.com/HouwyTwitch/gamma_project.git
    cd gamma_project

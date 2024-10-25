@@ -1,16 +1,37 @@
 # Gamma Control
 
-A simple application for adjusting the gamma settings of your display using Python.
+## Описание
 
-## Features
+**Gamma Control** — это простое и эффективное приложение для управления настройками гаммы вашего дисплея. С его помощью вы сможете легко переключаться между разными значениями гаммы, используя настраиваемую клавишу.
 
-- Easily toggle between different gamma settings.
-- Customizable key bindings through an INI configuration file.
-- Lightweight and efficient.
+## Функциональные возможности
 
-## Installation
+- Легкое переключение между разными значениями гаммы.
+- Настраиваемые клавиши управления через файл конфигурации.
+- Минимальные требования к ресурсам и высокая производительность.
+- **Готовый релиз** доступен для скачивания!
 
-1. Clone the repository:
+## Установка
+
+1. Клонируйте репозиторий:
    ```bash
-   git clone https://github.com/HouwyTwitch/Gamma-Control.git
-   cd Gamma-Control
+   git clone https://github.com/yourusername/gamma_project.git
+   cd gamma_project
+2. Установите зависимости (если есть):
+   ```bash
+   pip install -r requirements.txt
+3. Скомпилируйте приложение (если необходимо):
+   ```bash
+   pyinstaller gamma.spec
+
+## Использование
+
+Запустите приложение, чтобы начать настройку гаммы вашего дисплея. Нажмите на настроенную клавишу для переключения между значениями гаммы.
+
+## Конфигурация
+
+Отредактируйте файл config.ini, чтобы задать желаемые значения гаммы и клавиши управления
+
+## Готовый релиз
+
+Вы можете скачать готовый релиз

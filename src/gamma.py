@@ -322,14 +322,15 @@ class MonitorCard(QFrame):
         lo.addLayout(row); lo.addWidget(rl); lo.addWidget(tl)
 
     def _style(self, sel):
+        lbl_rule = f"MonitorCard QLabel{{background:{C['surf']};}}"
         if sel:
             self.setStyleSheet(
                 f"MonitorCard{{background:{C['surf']};border-radius:12px;"
-                f"border:1px solid {C['primary']};}}")
+                f"border:1px solid {C['primary']};}}" + lbl_rule)
         else:
             self.setStyleSheet(
                 f"MonitorCard{{background:{C['surf']};border-radius:12px;"
-                f"border:1px solid {C['out_v']};}}")
+                f"border:1px solid {C['out_v']};}}" + lbl_rule)
 
     def _on_sw(self, checked):
         self._sel = checked; self._style(checked)
@@ -367,7 +368,8 @@ class _Card(QFrame):
         self.setObjectName('Card')
         self.setStyleSheet(
             f"QFrame#Card{{background:{C['surf']};border-radius:12px;"
-            f"border:1px solid {C['outline']};}}")
+            f"border:1px solid {C['outline']};}}"
+            f"QFrame#Card QLabel{{background:{C['surf']};}}")
         self._lo = QVBoxLayout(self)
         self._lo.setContentsMargins(18, 16, 18, 16); self._lo.setSpacing(12)
 
@@ -906,9 +908,6 @@ QMainWindow, QWidget#root {{
 }}
 QWidget {{
     font-family: "Segoe UI", "Inter", "Roboto", sans-serif;
-}}
-QLabel {{
-    background: transparent;
 }}
 
 /* ── Tabs ──────────────────────────────────────────────────────────── */

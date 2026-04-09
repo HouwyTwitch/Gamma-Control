@@ -949,21 +949,23 @@ QScrollArea > QWidget > QWidget {{
     background: {C['bg']};
 }}
 QScrollBar:vertical {{
-    background: transparent; width: 5px; margin: 0;
+    background: {C['bg']}; width: 6px; margin: 0;
 }}
 QScrollBar::handle:vertical {{
     background: {C['outline']}; border-radius: 3px; min-height: 24px;
 }}
 QScrollBar::handle:vertical:hover {{ background: {C['on_surf_v']}; }}
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; border: none; }}
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{ background: {C['bg']}; }}
 QScrollBar:horizontal {{
-    background: transparent; height: 5px;
+    background: {C['bg']}; height: 6px;
 }}
 QScrollBar::handle:horizontal {{
     background: {C['outline']}; border-radius: 3px; min-width: 24px;
 }}
 QScrollBar::handle:horizontal:hover {{ background: {C['on_surf_v']}; }}
-QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ width: 0; }}
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ width: 0; border: none; }}
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{ background: {C['bg']}; }}
 
 /* ── Sliders ────────────────────────────────────────────────────────── */
 QSlider::groove:horizontal {{

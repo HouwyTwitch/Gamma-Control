@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Gamma Control  ·  PyQt5 / Material You 3"""
+"""Gamma Control  ·  PyQt5 GUI"""
 
 import sys, os, time, platform, configparser, threading
 
@@ -44,32 +44,46 @@ from PyQt5.QtWidgets import (
     QLabel, QSlider, QPushButton, QTabWidget, QFrame, QScrollArea,
     QDoubleSpinBox, QSystemTrayIcon, QMenu, QAction, QMessageBox,
 )
-from PyQt5.QtCore  import Qt, QThread, pyqtSignal, QTimer, QRectF
-from PyQt5.QtGui   import QColor, QPalette, QIcon, QPixmap, QPainter, QBrush
+from PyQt5.QtCore  import Qt, QThread, pyqtSignal, QTimer, QRectF, QRect
+from PyQt5.QtGui   import (QColor, QPalette, QIcon, QPixmap, QPainter,
+                            QBrush, QPen, QLinearGradient)
 
 _BASE = (os.path.dirname(sys.executable) if getattr(sys, 'frozen', False)
          else os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 CFG   = os.path.join(_BASE, 'config.ini')
 
-# ─── Material You 3 dark palette ─────────────────────────────────────────────
+# ─── Palette: deep dark + violet accent ──────────────────────────────────────
 C = dict(
-    bg        = '#1C1B1F',
-    surf_low  = '#1D1B20',
-    surf      = '#211F26',
-    surf_high = '#2B2930',
-    surf_top  = '#36343B',
-    primary   = '#D0BCFF',
-    on_pri    = '#381E72',
-    pri_cont  = '#4F378B',
-    on_pri_c  = '#EADDFF',
-    sec_cont  = '#4A4458',
-    on_sec_c  = '#E8DEF8',
-    on_surf   = '#E6E1E5',
-    on_surf_v = '#CAC4D0',
-    outline   = '#938F99',
-    out_v     = '#49454F',
-    success   = '#A8D5A2',
+    # Backgrounds (darkest → lightest)
+    bg        = '#0E0D12',
+    surf_low  = '#111019',   # header / footer
+    surf      = '#16141E',   # card surface
+    surf_high = '#1E1C28',   # input / hover
+    surf_top  = '#272535',   # active / selected
+
+    # Accent  — blue-violet
+    primary   = '#7B68EE',   # main accent (medium slate blue)
+    on_pri    = '#FFFFFF',
+    pri_cont  = '#2E2870',   # button / container bg
+    on_pri_c  = '#C4BAFF',
+
+    # Tonal secondary
+    sec_cont  = '#252048',
+    on_sec_c  = '#BDB5F0',
+
+    # Text
+    on_surf   = '#ECEAF6',   # primary text
+    on_surf_v = '#7E7A95',   # secondary text
+
+    # Borders / dividers
+    outline   = '#3D3A52',   # standard border
+    out_v     = '#201E2E',   # subtle border / divider
+
+    # Semantic
+    success   = '#3DD68C',
+    succ_dim  = '#1B4D38',
 )
+
 
 # =============================================================================
 # Monitor / gamma helpers
@@ -116,10 +130,10 @@ def apply_gamma(device: str, gamma: float) -> bool:
 
 
 # =============================================================================
-# Threads
+# Background threads
 # =============================================================================
 class HotkeyThread(QThread):
-    toggled = pyqtSignal(str)   # 'g1' | 'g2'
+    toggled = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -139,8 +153,7 @@ class HotkeyThread(QThread):
             self._key  = key
             self._mons = monitors[:]
 
-    def stop(self):
-        self._run = False
+    def stop(self): self._run = False
 
     def run(self):
         self._run = True
@@ -172,8 +185,7 @@ class _CaptureThread(QThread):
 
     def run(self):
         if not _HAS_KB:
-            self.failed.emit()
-            return
+            self.failed.emit(); return
         try:
             k = _kb.read_key(suppress=False)
             self.captured.emit(k)
@@ -184,6 +196,7 @@ class _CaptureThread(QThread):
 # =============================================================================
 # Custom widgets
 # =============================================================================
+
 class ToggleSwitch(QWidget):
     toggled = pyqtSignal(bool)
 
@@ -193,7 +206,7 @@ class ToggleSwitch(QWidget):
         self._pos = 1.0 if checked else 0.0
         self._tmr = QTimer(self, interval=16)
         self._tmr.timeout.connect(self._tick)
-        self.setFixedSize(52, 32)
+        self.setFixedSize(46, 28)
         self.setCursor(Qt.PointingHandCursor)
 
     def isChecked(self): return self._on
@@ -204,7 +217,7 @@ class ToggleSwitch(QWidget):
 
     def _tick(self):
         t = 1.0 if self._on else 0.0
-        self._pos += (t - self._pos) * 0.25
+        self._pos += (t - self._pos) * 0.3
         if abs(t - self._pos) < 0.02:
             self._pos = t; self._tmr.stop()
         self.update()
@@ -218,11 +231,46 @@ class ToggleSwitch(QWidget):
     def paintEvent(self, _):
         p = QPainter(self); p.setRenderHint(QPainter.Antialiasing)
         t = self._pos
-        p.setBrush(QBrush(QColor(C['primary'] if t > 0.5 else C['out_v'])))
+        # Track
+        if t > 0.5:
+            grad = QLinearGradient(0, 0, 46, 0)
+            grad.setColorAt(0, QColor('#5A4FD4'))
+            grad.setColorAt(1, QColor(C['primary']))
+            p.setBrush(QBrush(grad))
+        else:
+            p.setBrush(QBrush(QColor(C['surf_top'])))
         p.setPen(Qt.NoPen)
-        p.drawRoundedRect(QRectF(0, 4, 52, 24), 12, 12)
-        p.setBrush(QBrush(QColor(C['on_pri'] if t > 0.5 else C['outline'])))
-        p.drawEllipse(QRectF(4 + t * 20, 4, 24, 24))
+        p.drawRoundedRect(QRectF(0, 2, 46, 24), 12, 12)
+        # Thumb
+        thumb_x = 3 + t * 18
+        p.setBrush(QBrush(QColor(C['on_pri'] if t > 0.5 else C['on_surf_v'])))
+        p.drawEllipse(QRectF(thumb_x, 4, 20, 20))
+
+
+class _GammaBar(QWidget):
+    """Read-only visual bar showing gamma fill (0.30–1.00 range)."""
+    def __init__(self, value=1.0, parent=None):
+        super().__init__(parent)
+        self._v = value
+        self.setFixedHeight(6)
+
+    def set_value(self, v):
+        self._v = max(0.3, min(1.0, v)); self.update()
+
+    def paintEvent(self, _):
+        p = QPainter(self); p.setRenderHint(QPainter.Antialiasing)
+        w = self.width()
+        # Track
+        p.setBrush(QBrush(QColor(C['out_v']))); p.setPen(Qt.NoPen)
+        p.drawRoundedRect(0, 0, w, 6, 3, 3)
+        # Fill
+        frac = (self._v - 0.3) / 0.7
+        fw = max(6, int(w * frac))
+        grad = QLinearGradient(0, 0, fw, 0)
+        grad.setColorAt(0, QColor('#5A4FD4'))
+        grad.setColorAt(1, QColor(C['primary']))
+        p.setBrush(QBrush(grad))
+        p.drawRoundedRect(0, 0, fw, 6, 3, 3)
 
 
 class MonitorCard(QFrame):
@@ -232,32 +280,56 @@ class MonitorCard(QFrame):
         super().__init__(parent)
         self._info = info
         self._sel  = True
-        self.setFixedSize(180, 120)
+        self.setFixedSize(185, 115)
         self._build(); self._style(True)
 
     def _build(self):
         lo = QVBoxLayout(self)
-        lo.setContentsMargins(14, 12, 14, 12); lo.setSpacing(5)
-        row = QHBoxLayout()
-        nm  = QLabel(self._info['name'])
-        nm.setStyleSheet(f"color:{C['on_surf']};font-size:14px;font-weight:600;")
+        lo.setContentsMargins(14, 11, 14, 11); lo.setSpacing(5)
+
+        # ── header row ──────────────────────────────────────────────────────
+        row = QHBoxLayout(); row.setSpacing(7)
+
+        # Index badge: circle with number
+        badge = QLabel(str(self._info['index'] + 1))
+        badge.setFixedSize(20, 20); badge.setAlignment(Qt.AlignCenter)
+        badge.setStyleSheet(
+            f"background:{C['pri_cont']};color:{C['on_pri_c']};"
+            f"border-radius:10px;font-size:10px;font-weight:800;")
+
+        nm = QLabel(self._info['name'])
+        nm.setStyleSheet(f"color:{C['on_surf']};font-size:13px;font-weight:600;")
+
         self._sw = ToggleSwitch(True)
         self._sw.toggled.connect(self._on_sw)
-        row.addWidget(nm); row.addStretch(); row.addWidget(self._sw)
-        r   = self._info['rect']
-        rl  = QLabel(f"{r[2]-r[0]}×{r[3]-r[1]}")
+
+        row.addWidget(badge); row.addWidget(nm)
+        row.addStretch(); row.addWidget(self._sw)
+
+        # ── info rows ────────────────────────────────────────────────────────
+        r  = self._info['rect']
+        rl = QLabel(f"{r[2]-r[0]} × {r[3]-r[1]}")
         rl.setStyleSheet(f"color:{C['on_surf_v']};font-size:12px;")
+
         is_primary = self._info['primary']
-        tag_t = "● Primary" if is_primary else f"({r[0]}, {r[1]})"
-        tag_c = C['primary'] if is_primary else C['on_surf_v']
-        tl = QLabel(tag_t); tl.setStyleSheet(f"color:{tag_c};font-size:11px;")
+        tag_t = "★  Primary" if is_primary else f"x {r[0]},  y {r[1]}"
+        tag_c = C['on_pri_c'] if is_primary else C['out_v'].replace('#', '#')
+        # For position labels use a slightly brighter muted color
+        tag_c = C['on_pri_c'] if is_primary else '#4A4660'
+        tl = QLabel(tag_t)
+        tl.setStyleSheet(f"color:{tag_c};font-size:11px;font-weight:500;")
+
         lo.addLayout(row); lo.addWidget(rl); lo.addWidget(tl)
 
     def _style(self, sel):
-        bdr = C['primary'] if sel else C['out_v']
-        self.setStyleSheet(
-            f"MonitorCard{{background:{C['surf_high']};border-radius:16px;"
-            f"border:1.5px solid {bdr};}}")
+        if sel:
+            self.setStyleSheet(
+                f"MonitorCard{{background:{C['surf']};border-radius:12px;"
+                f"border:1px solid {C['primary']};}}")
+        else:
+            self.setStyleSheet(
+                f"MonitorCard{{background:{C['surf']};border-radius:12px;"
+                f"border:1px solid {C['out_v']};}}")
 
     def _on_sw(self, checked):
         self._sel = checked; self._style(checked)
@@ -266,35 +338,27 @@ class MonitorCard(QFrame):
     def is_selected(self): return self._sel
 
 
-class _Slider(QWidget):
-    value_changed = pyqtSignal(float)
-
-    def __init__(self, label, val, parent=None):
-        super().__init__(parent)
-        lo = QHBoxLayout(self)
-        lo.setContentsMargins(0, 0, 0, 0); lo.setSpacing(14)
-        lbl = QLabel(label); lbl.setFixedWidth(76)
-        lbl.setStyleSheet(f"color:{C['on_surf_v']};font-size:13px;")
-        self._sl = QSlider(Qt.Horizontal)
-        self._sl.setRange(30, 100); self._sl.setValue(int(val * 100))
-        self._sl.valueChanged.connect(self._ch)
-        self._vl = QLabel(f"{val:.2f}"); self._vl.setFixedWidth(38)
-        self._vl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self._vl.setStyleSheet(f"color:{C['primary']};font-size:14px;font-weight:700;")
-        lo.addWidget(lbl); lo.addWidget(self._sl); lo.addWidget(self._vl)
-
-    def _ch(self, v):
-        fv = v / 100.0; self._vl.setText(f"{fv:.2f}"); self.value_changed.emit(fv)
-
-    def value(self): return self._sl.value() / 100.0
-    def set_value(self, v): self._sl.setValue(int(v * 100))
-
-
-class _SLabel(QLabel):
+class _SLabel(QWidget):
+    """Section header: accent bar + spaced-out label."""
     def __init__(self, text, parent=None):
-        super().__init__(text, parent)
-        self.setStyleSheet(
-            f"color:{C['on_surf_v']};font-size:11px;font-weight:700;letter-spacing:1.5px;")
+        super().__init__(parent)
+        self.setFixedHeight(18)
+        lo = QHBoxLayout(self)
+        lo.setContentsMargins(0, 0, 0, 0); lo.setSpacing(8)
+
+        bar = QFrame()
+        bar.setFixedSize(3, 14)
+        bar.setStyleSheet(
+            f"background:{C['primary']};border-radius:2px;")
+
+        lbl = QLabel(text)
+        lbl.setStyleSheet(
+            f"color:{C['on_surf_v']};font-size:10px;"
+            f"font-weight:700;letter-spacing:2px;")
+
+        lo.addWidget(bar, 0, Qt.AlignVCenter)
+        lo.addWidget(lbl, 0, Qt.AlignVCenter)
+        lo.addStretch()
 
 
 class _Card(QFrame):
@@ -302,72 +366,120 @@ class _Card(QFrame):
         super().__init__(parent)
         self.setObjectName('Card')
         self.setStyleSheet(
-            f"QFrame#Card{{background:{C['surf']};border-radius:16px;border:none;}}")
+            f"QFrame#Card{{background:{C['surf']};border-radius:12px;"
+            f"border:1px solid {C['outline']};}}")
         self._lo = QVBoxLayout(self)
-        self._lo.setContentsMargins(20, 20, 20, 20); self._lo.setSpacing(14)
+        self._lo.setContentsMargins(18, 16, 18, 16); self._lo.setSpacing(12)
 
     def add(self, widget=None, layout=None):
         if widget is not None: self._lo.addWidget(widget)
         if layout is not None: self._lo.addLayout(layout)
 
 
-def _btn(cls, text):
-    b = cls(text); b.setCursor(Qt.PointingHandCursor); return b
+class _Slider(QWidget):
+    """Two-row slider: label+value-badge on top, slider below."""
+    value_changed = pyqtSignal(float)
+
+    def __init__(self, label, val, parent=None):
+        super().__init__(parent)
+        lo = QVBoxLayout(self)
+        lo.setContentsMargins(0, 0, 0, 0); lo.setSpacing(7)
+
+        # Top row: name + value badge
+        top = QHBoxLayout(); top.setContentsMargins(0, 0, 0, 0)
+        lbl = QLabel(label)
+        lbl.setStyleSheet(
+            f"color:{C['on_surf_v']};font-size:12px;font-weight:600;")
+
+        self._vl = QLabel(f"{val:.2f}")
+        self._vl.setAlignment(Qt.AlignCenter)
+        self._vl.setFixedSize(48, 22)
+        self._vl.setStyleSheet(
+            f"background:{C['pri_cont']};color:{C['on_pri_c']};"
+            f"font-size:12px;font-weight:700;border-radius:6px;")
+
+        top.addWidget(lbl); top.addStretch(); top.addWidget(self._vl)
+
+        # Slider
+        self._sl = QSlider(Qt.Horizontal)
+        self._sl.setRange(30, 100)
+        self._sl.setValue(int(val * 100))
+        self._sl.valueChanged.connect(self._ch)
+
+        lo.addLayout(top)
+        lo.addWidget(self._sl)
+
+    def _ch(self, v):
+        fv = v / 100.0
+        self._vl.setText(f"{fv:.2f}")
+        self.value_changed.emit(fv)
+
+    def value(self): return self._sl.value() / 100.0
+    def set_value(self, v): self._sl.setValue(int(v * 100))
+
 
 class _FilledBtn(QPushButton):
     def __init__(self, text, parent=None):
         super().__init__(text, parent); self.setCursor(Qt.PointingHandCursor)
         self.setStyleSheet(f"""
 QPushButton{{background:{C['primary']};color:{C['on_pri']};border:none;
-  border-radius:20px;padding:10px 24px;font-size:14px;font-weight:600;}}
-QPushButton:hover{{background:#D8C6FF;}}
-QPushButton:pressed{{background:#C4AEFF;}}
-QPushButton:disabled{{background:{C['surf_high']};color:{C['outline']};}}""")
+  border-radius:8px;padding:9px 22px;font-size:13px;font-weight:600;}}
+QPushButton:hover{{background:#9180F5;}}
+QPushButton:pressed{{background:#6255D4;}}
+QPushButton:disabled{{background:{C['surf_high']};color:{C['on_surf_v']};}}""")
+
 
 class _OutlineBtn(QPushButton):
     def __init__(self, text, parent=None):
         super().__init__(text, parent); self.setCursor(Qt.PointingHandCursor)
         self.setStyleSheet(f"""
-QPushButton{{background:transparent;color:{C['primary']};border:1px solid {C['outline']};
-  border-radius:20px;padding:10px 24px;font-size:14px;font-weight:600;}}
-QPushButton:hover{{background:rgba(208,188,255,0.08);}}
-QPushButton:pressed{{background:rgba(208,188,255,0.12);}}""")
+QPushButton{{background:transparent;color:{C['on_pri_c']};
+  border:1px solid {C['outline']};border-radius:8px;
+  padding:9px 22px;font-size:13px;font-weight:600;}}
+QPushButton:hover{{background:{C['surf_high']};border-color:{C['primary']};}}
+QPushButton:pressed{{background:{C['surf_top']};}}""")
+
 
 class _TonalBtn(QPushButton):
     def __init__(self, text, parent=None):
         super().__init__(text, parent); self.setCursor(Qt.PointingHandCursor)
         self.setStyleSheet(f"""
 QPushButton{{background:{C['sec_cont']};color:{C['on_sec_c']};border:none;
-  border-radius:20px;padding:10px 24px;font-size:14px;font-weight:600;}}
-QPushButton:hover{{background:#524965;}}
-QPushButton:pressed{{background:#3E3751;}}""")
+  border-radius:8px;padding:9px 22px;font-size:13px;font-weight:600;}}
+QPushButton:hover{{background:#302B60;}}
+QPushButton:pressed{{background:#221C4A;}}""")
 
 
 class HotkeyBtn(QPushButton):
+    """Keyboard-key–styled button that captures the next keypress."""
     hotkey_set = pyqtSignal(str)
 
     def __init__(self, key, parent=None):
         super().__init__(key, parent)
         self._key    = key; self._active = False; self._thread = None
-        self.setFixedHeight(48); self.setCursor(Qt.PointingHandCursor)
+        self.setFixedHeight(44); self.setCursor(Qt.PointingHandCursor)
         self._style_idle(); self.clicked.connect(self._toggle)
 
     def _style_idle(self):
         self.setStyleSheet(f"""
 QPushButton{{background:{C['surf_high']};color:{C['on_surf']};
-  border:1px solid {C['out_v']};border-radius:12px;
-  padding:8px 16px;font-size:14px;font-family:monospace;}}
-QPushButton:hover{{background:{C['surf_top']};border:1px solid {C['outline']};}}""")
+  border:1px solid {C['outline']};border-bottom:3px solid {C['out_v'].replace('#', '#')};
+  border-radius:8px;padding:6px 16px;
+  font-size:14px;font-family:"Consolas","Courier New",monospace;font-weight:600;}}
+QPushButton:hover{{background:{C['surf_top']};border-color:{C['primary']};
+  border-bottom-color:{C['primary']};}}""".replace(
+    'border-bottom:3px solid #201E2E', f'border-bottom:3px solid #141220'))
 
     def _style_cap(self):
         self.setStyleSheet(f"""
 QPushButton{{background:{C['pri_cont']};color:{C['on_pri_c']};
-  border:2px solid {C['primary']};border-radius:12px;
-  padding:8px 16px;font-size:14px;font-style:italic;}}""")
+  border:1px solid {C['primary']};border-bottom:3px solid #1E1860;
+  border-radius:8px;padding:6px 16px;
+  font-size:13px;font-style:italic;font-weight:500;}}""")
 
     def _toggle(self):
         if self._active: self._cancel(); return
-        self._active = True; self.setText("Press any key…"); self._style_cap()
+        self._active = True; self.setText("  Press any key…"); self._style_cap()
         self._thread = _CaptureThread()
         self._thread.captured.connect(self._got)
         self._thread.failed.connect(self._cancel)
@@ -403,17 +515,17 @@ class MainTab(QWidget):
         scroll.setFrameShape(QFrame.NoFrame)
         body   = QWidget(); body.setStyleSheet(f"background:{C['bg']};")
         lo     = QVBoxLayout(body)
-        lo.setContentsMargins(24, 24, 24, 24); lo.setSpacing(18)
+        lo.setContentsMargins(20, 20, 20, 20); lo.setSpacing(16)
 
-        # Monitors
+        # ── Monitors ──────────────────────────────────────────────────────────
         lo.addWidget(_SLabel("MONITORS"))
-        hs = QScrollArea(); hs.setFixedHeight(138)
+        hs = QScrollArea(); hs.setFixedHeight(130)
         hs.setFrameShape(QFrame.NoFrame)
         hs.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         hs.setStyleSheet("background:transparent;")
         mw  = QWidget(); mw.setStyleSheet(f"background:{C['bg']};")
         mlo = QHBoxLayout(mw)
-        mlo.setContentsMargins(0, 0, 0, 0); mlo.setSpacing(12)
+        mlo.setContentsMargins(0, 0, 0, 0); mlo.setSpacing(10)
         self._cards = []
         for m in self._mons:
             card = MonitorCard(m)
@@ -422,7 +534,7 @@ class MainTab(QWidget):
         mlo.addStretch(); hs.setWidget(mw)
         lo.addWidget(hs)
 
-        # Gamma values
+        # ── Gamma values ─────────────────────────────────────────────────────
         lo.addWidget(_SLabel("GAMMA VALUES"))
         g1v = float(self._cfg['GammaSettings']['gamma1'])
         g2v = float(self._cfg['GammaSettings']['gamma2'])
@@ -436,14 +548,50 @@ class MainTab(QWidget):
         gc.add(self._sl1); gc.add(div); gc.add(self._sl2)
         lo.addWidget(gc)
 
-        # Status
+        # ── Status ────────────────────────────────────────────────────────────
         lo.addWidget(_SLabel("STATUS"))
-        self._dot  = QLabel("●"); self._dot.setStyleSheet(f"color:{C['success']};font-size:20px;")
-        self._stxt = QLabel("Running — Normal (1.00)")
-        self._stxt.setStyleSheet(f"color:{C['on_surf']};font-size:14px;")
-        sr = QHBoxLayout(); sr.setSpacing(10)
-        sr.addWidget(self._dot); sr.addWidget(self._stxt); sr.addStretch()
-        sc = _Card(); sc.add(layout=sr)
+        sc = _Card()
+        # Big gamma value display
+        top_row = QHBoxLayout(); top_row.setSpacing(0)
+
+        left_vl = QVBoxLayout(); left_vl.setSpacing(1)
+        self._mode_lbl = QLabel("NORMAL")
+        self._mode_lbl.setStyleSheet(
+            f"color:{C['primary']};font-size:10px;"
+            f"font-weight:700;letter-spacing:2px;")
+        self._gval = QLabel(f"{g1v:.2f}")
+        self._gval.setStyleSheet(
+            f"color:{C['on_surf']};font-size:40px;font-weight:700;"
+            f"letter-spacing:-1px;")
+        left_vl.addWidget(self._mode_lbl)
+        left_vl.addWidget(self._gval)
+
+        right_vl = QVBoxLayout()
+        right_vl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self._run_badge = QLabel("● RUNNING")
+        self._run_badge.setAlignment(Qt.AlignRight)
+        self._run_badge.setStyleSheet(
+            f"color:{C['success']};font-size:12px;font-weight:600;")
+        key_hint = self._cfg['GammaSettings'].get('toggle_key', 'num 9').strip()
+        self._kbd_lbl = QLabel(f"hotkey:  {key_hint}")
+        self._kbd_lbl.setAlignment(Qt.AlignRight)
+        self._kbd_lbl.setStyleSheet(
+            f"color:{C['out_v'].replace('#2','#4')};font-size:11px;"
+            f"font-family:monospace;")
+        right_vl.addStretch()
+        right_vl.addWidget(self._run_badge)
+        right_vl.addSpacing(4)
+        right_vl.addWidget(self._kbd_lbl)
+
+        top_row.addLayout(left_vl)
+        top_row.addStretch()
+        top_row.addLayout(right_vl)
+
+        # Gamma bar below
+        self._gbar = _GammaBar(g1v)
+
+        sc.add(layout=top_row)
+        sc.add(self._gbar)
         lo.addWidget(sc)
         lo.addStretch()
         scroll.setWidget(body); outer.addWidget(scroll)
@@ -461,13 +609,20 @@ class MainTab(QWidget):
         return [self._mons[i] for i in sorted(self._sel) if i < len(self._mons)]
 
     def update_status(self, state, running, gamma):
+        self._mode_lbl.setText("NORMAL" if state == 'g1' else "REDUCED")
+        self._gval.setText(f"{gamma:.2f}")
+        self._gbar.set_value(gamma)
         if running:
-            self._dot.setStyleSheet(f"color:{C['success']};font-size:20px;")
-            lab = "Normal" if state == 'g1' else "Reduced"
-            self._stxt.setText(f"Running — {lab} ({gamma:.2f})")
+            self._run_badge.setText("● RUNNING")
+            self._run_badge.setStyleSheet(
+                f"color:{C['success']};font-size:12px;font-weight:600;")
         else:
-            self._dot.setStyleSheet(f"color:{C['outline']};font-size:20px;")
-            self._stxt.setText("Stopped")
+            self._run_badge.setText("○  STOPPED")
+            self._run_badge.setStyleSheet(
+                f"color:{C['on_surf_v']};font-size:12px;font-weight:600;")
+
+    def refresh_hotkey_hint(self, key):
+        self._kbd_lbl.setText(f"hotkey:  {key}")
 
 
 class SettingsTab(QWidget):
@@ -480,11 +635,11 @@ class SettingsTab(QWidget):
     def _spin_ss(self):
         return f"""
 QDoubleSpinBox{{background:{C['surf_high']};color:{C['on_surf']};
-  border:1px solid {C['out_v']};border-radius:8px;
-  padding:8px 12px;font-size:14px;min-width:110px;}}
-QDoubleSpinBox:focus{{border:2px solid {C['primary']};}}
+  border:1px solid {C['outline']};border-radius:8px;
+  padding:7px 12px;font-size:13px;min-width:110px;}}
+QDoubleSpinBox:focus{{border:1px solid {C['primary']};}}
 QDoubleSpinBox::up-button,QDoubleSpinBox::down-button{{
-  background:{C['surf_top']};border:none;width:22px;border-radius:4px;}}"""
+  background:{C['surf_top']};border:none;width:20px;border-radius:4px;}}"""
 
     def _build(self):
         outer  = QVBoxLayout(self); outer.setContentsMargins(0, 0, 0, 0)
@@ -492,25 +647,31 @@ QDoubleSpinBox::up-button,QDoubleSpinBox::down-button{{
         scroll.setFrameShape(QFrame.NoFrame)
         body   = QWidget(); body.setStyleSheet(f"background:{C['bg']};")
         lo     = QVBoxLayout(body)
-        lo.setContentsMargins(24, 24, 24, 24); lo.setSpacing(18)
+        lo.setContentsMargins(20, 20, 20, 20); lo.setSpacing(16)
 
-        # Hotkey
+        # ── Hotkey ────────────────────────────────────────────────────────────
         lo.addWidget(_SLabel("HOTKEY"))
         hkc = _Card()
-        dsc = QLabel("Click the button below, then press the desired key.")
-        dsc.setStyleSheet(f"color:{C['on_surf_v']};font-size:13px;"); dsc.setWordWrap(True)
+        dsc = QLabel("Click the button, then press the desired key.")
+        dsc.setStyleSheet(f"color:{C['on_surf_v']};font-size:12px;")
+        dsc.setWordWrap(True)
         self._hkb = HotkeyBtn(self._cfg['GammaSettings']['toggle_key'].strip())
         hkc.add(dsc); hkc.add(self._hkb)
         lo.addWidget(hkc)
 
-        # Timing
+        # ── Timing ────────────────────────────────────────────────────────────
         lo.addWidget(_SLabel("TIMING"))
         tc = _Card()
 
-        def lrow(txt, spin):
-            r = QHBoxLayout()
-            lbl = QLabel(txt); lbl.setStyleSheet(f"color:{C['on_surf']};font-size:14px;")
-            r.addWidget(lbl); r.addStretch(); r.addWidget(spin); return r
+        def lrow(txt, hint, spin):
+            r = QHBoxLayout(); r.setSpacing(12)
+            vl = QVBoxLayout(); vl.setSpacing(1)
+            lb = QLabel(txt)
+            lb.setStyleSheet(f"color:{C['on_surf']};font-size:13px;font-weight:600;")
+            ht = QLabel(hint)
+            ht.setStyleSheet(f"color:{C['on_surf_v']};font-size:11px;")
+            vl.addWidget(lb); vl.addWidget(ht)
+            r.addLayout(vl); r.addStretch(); r.addWidget(spin); return r
 
         self._dt = QDoubleSpinBox(); self._dt.setRange(0.01, 2.0)
         self._dt.setSingleStep(0.05); self._dt.setDecimals(3)
@@ -525,16 +686,16 @@ QDoubleSpinBox::up-button,QDoubleSpinBox::down-button{{
         self._dp.setValue(float(self._cfg['GammaSettings']['delay_polling']))
         self._dp.setSuffix(" s"); self._dp.setStyleSheet(self._spin_ss())
 
-        tc.add(layout=lrow("Trigger delay", self._dt))
+        tc.add(layout=lrow("Trigger delay", "Cooldown after toggle", self._dt))
         tc.add(div)
-        tc.add(layout=lrow("Polling delay", self._dp))
+        tc.add(layout=lrow("Polling delay", "How often to check for keypress", self._dp))
         lo.addWidget(tc)
 
-        # Buttons
+        # ── Buttons ───────────────────────────────────────────────────────────
         br = QHBoxLayout(); br.addStretch()
         rb = _OutlineBtn("Reset defaults"); rb.clicked.connect(self._reset)
         sb = _FilledBtn("Save settings");   sb.clicked.connect(self._save)
-        br.addWidget(rb); br.addSpacing(10); br.addWidget(sb)
+        br.addWidget(rb); br.addSpacing(8); br.addWidget(sb)
         lo.addLayout(br); lo.addStretch()
         scroll.setWidget(body); outer.addWidget(scroll)
 
@@ -570,7 +731,7 @@ class Window(QMainWindow):
         self._thread = HotkeyThread()
         self._thread.toggled.connect(self._on_toggled)
         self.setWindowTitle("Gamma Control")
-        self.setMinimumSize(500, 560); self.resize(540, 680)
+        self.setMinimumSize(480, 540); self.resize(520, 660)
         self._build_ui(); self._build_tray()
         self.setStyleSheet(SHEET)
         self._start()
@@ -590,36 +751,66 @@ class Window(QMainWindow):
         self.setCentralWidget(root)
         vl = QVBoxLayout(root); vl.setContentsMargins(0, 0, 0, 0); vl.setSpacing(0)
 
-        # Header
-        hdr = QWidget(); hdr.setFixedHeight(60)
+        # ── Header ────────────────────────────────────────────────────────────
+        hdr = QWidget(); hdr.setFixedHeight(56)
         hdr.setStyleSheet(
-            f"background:{C['surf_low']};border-bottom:1px solid {C['out_v']};")
-        hl = QHBoxLayout(hdr); hl.setContentsMargins(20, 0, 20, 0)
-        ico = QLabel("◑"); ico.setStyleSheet(f"color:{C['primary']};font-size:22px;")
+            f"background:{C['surf_low']};"
+            f"border-bottom:1px solid {C['out_v']};")
+        hl = QHBoxLayout(hdr); hl.setContentsMargins(18, 0, 18, 0); hl.setSpacing(10)
+
+        # Small painted icon
+        ic_lbl = QLabel()
+        ic_lbl.setFixedSize(28, 28)
+        px = QPixmap(28, 28); px.fill(Qt.transparent)
+        pp = QPainter(px); pp.setRenderHint(QPainter.Antialiasing)
+        # Outer circle
+        pp.setBrush(QBrush(QColor(C['pri_cont']))); pp.setPen(Qt.NoPen)
+        pp.drawEllipse(0, 0, 28, 28)
+        # Inner sun-like symbol: rays + center dot
+        pp.setBrush(QBrush(QColor(C['primary']))); pp.setPen(Qt.NoPen)
+        pp.drawEllipse(10, 10, 8, 8)
+        pen = QPen(QColor(C['primary'])); pen.setWidth(2)
+        pen.setCapStyle(Qt.RoundCap); pp.setPen(pen)
+        import math
+        for i in range(6):
+            angle = math.radians(i * 60)
+            x1 = 14 + math.cos(angle) * 6; y1 = 14 + math.sin(angle) * 6
+            x2 = 14 + math.cos(angle) * 9; y2 = 14 + math.sin(angle) * 9
+            pp.drawLine(int(x1), int(y1), int(x2), int(y2))
+        pp.end()
+        ic_lbl.setPixmap(px)
+
         ttl = QLabel("Gamma Control")
-        ttl.setStyleSheet(f"color:{C['on_surf']};font-size:17px;font-weight:700;")
-        hl.addWidget(ico); hl.addSpacing(10); hl.addWidget(ttl); hl.addStretch()
+        ttl.setStyleSheet(f"color:{C['on_surf']};font-size:15px;font-weight:700;")
+        ver = QLabel("v2.0")
+        ver.setStyleSheet(
+            f"color:{C['on_surf_v']};font-size:10px;font-weight:500;"
+            f"background:{C['surf_high']};border-radius:4px;padding:1px 6px;")
+
+        hl.addWidget(ic_lbl); hl.addWidget(ttl); hl.addWidget(ver)
+        hl.addStretch()
         vl.addWidget(hdr)
 
-        # Tabs
+        # ── Tabs ──────────────────────────────────────────────────────────────
         self._tabs = QTabWidget(); self._tabs.setObjectName('tabs')
         self._tabs.setDocumentMode(True)
         self._mt = MainTab(self._cfg, self._mons)
         self._mt.settings_changed.connect(self._reconf)
         self._st = SettingsTab(self._cfg)
-        self._st.saved.connect(self._reconf)
-        self._tabs.addTab(self._mt, "Control")
-        self._tabs.addTab(self._st, "Settings")
+        self._st.saved.connect(self._on_settings_saved)
+        self._tabs.addTab(self._mt, "  Control  ")
+        self._tabs.addTab(self._st, "  Settings  ")
         vl.addWidget(self._tabs)
 
-        # Footer
-        ftr = QWidget(); ftr.setFixedHeight(60)
+        # ── Footer ────────────────────────────────────────────────────────────
+        ftr = QWidget(); ftr.setFixedHeight(56)
         ftr.setStyleSheet(
-            f"background:{C['surf_low']};border-top:1px solid {C['out_v']};")
-        fl = QHBoxLayout(ftr); fl.setContentsMargins(20, 0, 20, 0); fl.setSpacing(10)
+            f"background:{C['surf_low']};"
+            f"border-top:1px solid {C['out_v']};")
+        fl = QHBoxLayout(ftr); fl.setContentsMargins(18, 0, 18, 0); fl.setSpacing(8)
         self._tog_btn = _TonalBtn("Toggle Gamma")
         self._tog_btn.clicked.connect(self._manual_toggle)
-        self._run_btn = _FilledBtn("Stop"); self._run_btn.setFixedWidth(110)
+        self._run_btn = _FilledBtn("Stop"); self._run_btn.setFixedWidth(100)
         self._run_btn.clicked.connect(self._toggle_run)
         fl.addStretch(); fl.addWidget(self._tog_btn); fl.addWidget(self._run_btn)
         vl.addWidget(ftr)
@@ -652,6 +843,12 @@ class Window(QMainWindow):
             key=g['toggle_key'].strip(),
             monitors=self._mt.selected_monitors())
 
+    def _on_settings_saved(self):
+        self._reconf()
+        # Refresh hotkey hint in status card
+        self._mt.refresh_hotkey_hint(
+            self._cfg['GammaSettings'].get('toggle_key', 'num 9').strip())
+
     def _start(self):
         self._reconf()
         g1 = float(self._cfg['GammaSettings']['gamma1'])
@@ -664,14 +861,15 @@ class Window(QMainWindow):
     def _stop(self):
         self._thread.stop(); self._thread.wait(2000)
         self._run_btn.setText("Start")
-        self._mt.update_status(self._state, False, 0.0)
+        g = float(self._cfg['GammaSettings']['gamma1' if self._state == 'g1' else 'gamma2'])
+        self._mt.update_status(self._state, False, g)
 
     def _toggle_run(self):
         if self._thread.isRunning(): self._stop()
         else: self._start()
 
     def _manual_toggle(self):
-        ns = 'g2' if self._state == 'g1' else 'g1'
+        ns  = 'g2' if self._state == 'g1' else 'g1'
         key = 'gamma2' if ns == 'g2' else 'gamma1'
         gv  = float(self._cfg['GammaSettings'][key])
         self._state = ns
@@ -704,99 +902,121 @@ QMainWindow, QWidget#root {{
 QWidget {{
     font-family: "Segoe UI", "Inter", "Roboto", sans-serif;
 }}
+
+/* ── Tabs ──────────────────────────────────────────────────────────── */
 QTabWidget#tabs::pane {{
     border: none;
     background: {C['bg']};
 }}
 QTabWidget#tabs QTabBar {{
     background: {C['surf_low']};
+    border-bottom: 1px solid {C['out_v']};
 }}
 QTabWidget#tabs QTabBar::tab {{
     background: transparent;
     color: {C['on_surf_v']};
-    padding: 14px 32px;
-    font-size: 14px;
+    padding: 12px 8px;
+    font-size: 13px;
     font-weight: 500;
     border: none;
     border-bottom: 2px solid transparent;
-    min-width: 100px;
+    min-width: 90px;
 }}
 QTabWidget#tabs QTabBar::tab:selected {{
     color: {C['primary']};
     border-bottom: 2px solid {C['primary']};
+    font-weight: 600;
 }}
 QTabWidget#tabs QTabBar::tab:hover:!selected {{
-    background: rgba(208,188,255,0.06);
     color: {C['on_surf']};
+    background: {C['surf_high']};
 }}
+
+/* ── Scrollbars ─────────────────────────────────────────────────────── */
 QScrollArea {{
     border: none; background: transparent;
 }}
 QScrollBar:vertical {{
-    background: transparent; width: 6px; margin: 0;
+    background: transparent; width: 5px; margin: 0;
 }}
 QScrollBar::handle:vertical {{
-    background: {C['out_v']}; border-radius: 3px; min-height: 30px;
+    background: {C['outline']}; border-radius: 3px; min-height: 24px;
 }}
-QScrollBar::handle:vertical:hover {{
-    background: {C['outline']};
-}}
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-    height: 0;
-}}
+QScrollBar::handle:vertical:hover {{ background: {C['on_surf_v']}; }}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
 QScrollBar:horizontal {{
-    background: transparent; height: 6px;
+    background: transparent; height: 5px;
 }}
 QScrollBar::handle:horizontal {{
-    background: {C['out_v']}; border-radius: 3px; min-width: 30px;
+    background: {C['outline']}; border-radius: 3px; min-width: 24px;
 }}
-QScrollBar::handle:horizontal:hover {{
-    background: {C['outline']};
-}}
-QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
-    width: 0;
-}}
+QScrollBar::handle:horizontal:hover {{ background: {C['on_surf_v']}; }}
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ width: 0; }}
+
+/* ── Sliders ────────────────────────────────────────────────────────── */
 QSlider::groove:horizontal {{
-    height: 4px; background: {C['out_v']}; border-radius: 2px;
+    height: 5px;
+    background: {C['surf_top']};
+    border-radius: 3px;
 }}
 QSlider::handle:horizontal {{
-    width: 20px; height: 20px; border-radius: 10px;
-    background: {C['primary']}; margin: -8px 0; border: none;
+    width: 18px; height: 18px;
+    border-radius: 9px;
+    background: {C['primary']};
+    margin: -7px 0;
+    border: 2px solid {C['bg']};
 }}
 QSlider::handle:horizontal:hover {{
-    background: #D8C6FF;
+    background: #9180F5;
+    width: 20px; height: 20px;
+    border-radius: 10px;
+    margin: -8px 0;
 }}
 QSlider::sub-page:horizontal {{
-    background: {C['primary']}; border-radius: 2px;
+    background: {C['primary']};
+    border-radius: 3px;
+    opacity: 0.7;
 }}
+
+/* ── Tooltips ───────────────────────────────────────────────────────── */
 QToolTip {{
-    background: {C['surf_top']}; color: {C['on_surf']};
-    border: 1px solid {C['out_v']}; border-radius: 8px;
-    padding: 6px 10px; font-size: 12px;
+    background: {C['surf_top']};
+    color: {C['on_surf']};
+    border: 1px solid {C['outline']};
+    border-radius: 6px;
+    padding: 5px 9px;
+    font-size: 12px;
 }}
+
+/* ── Message boxes ──────────────────────────────────────────────────── */
 QMessageBox {{
-    background: {C['surf']}; color: {C['on_surf']};
+    background: {C['surf']};
+    color: {C['on_surf']};
 }}
 QMessageBox QPushButton {{
-    background: {C['primary']}; color: {C['on_pri']};
-    border: none; border-radius: 16px;
-    padding: 8px 20px; font-size: 13px; min-width: 80px;
+    background: {C['primary']};
+    color: {C['on_pri']};
+    border: none; border-radius: 7px;
+    padding: 7px 18px; font-size: 13px; min-width: 70px;
 }}
 """
 
 TRAY_SS = f"""
 QMenu {{
-    background: {C['surf_high']}; color: {C['on_surf']};
-    border: 1px solid {C['out_v']}; border-radius: 12px;
-    padding: 6px 0; font-size: 13px;
+    background: {C['surf_high']};
+    color: {C['on_surf']};
+    border: 1px solid {C['outline']};
+    border-radius: 10px;
+    padding: 5px 0;
+    font-size: 13px;
     font-family: "Segoe UI", sans-serif;
 }}
-QMenu::item {{ padding: 8px 20px; margin: 2px 4px; border-radius: 8px; }}
+QMenu::item {{ padding: 7px 18px; margin: 1px 4px; border-radius: 6px; }}
 QMenu::item:selected {{
-    background: rgba(208,188,255,0.12); color: {C['primary']};
+    background: {C['surf_top']}; color: {C['on_pri_c']};
 }}
 QMenu::separator {{
-    height: 1px; background: {C['out_v']}; margin: 4px 12px;
+    height: 1px; background: {C['out_v']}; margin: 3px 10px;
 }}
 """
 

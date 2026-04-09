@@ -55,5 +55,5 @@ exe = EXE(
     upx=True,
     upx_exclude=['vcruntime140.dll', 'ucrtbase.dll'],
     console=False,
-    icon=None,
+    icon='assets/icon.ico',
 )

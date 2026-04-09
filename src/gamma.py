@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Gamma Control  ·  PyQt5 GUI"""
 
-import sys, os, time, platform, configparser, threading
+import sys, os, time, math, platform, configparser, threading
 
 IS_WIN = platform.system() == 'Windows'
 
@@ -360,6 +360,27 @@ class _SLabel(QWidget):
         lo.addWidget(bar, 0, Qt.AlignVCenter)
         lo.addWidget(lbl, 0, Qt.AlignVCenter)
         lo.addStretch()
+
+
+def _sun_pixmap(size: int) -> QPixmap:
+    """Sun icon used in the header, window icon, and tray."""
+    px = QPixmap(size, size); px.fill(Qt.transparent)
+    p = QPainter(px); p.setRenderHint(QPainter.Antialiasing)
+    s = size; c = s / 2
+    p.setBrush(QBrush(QColor(C['pri_cont']))); p.setPen(Qt.NoPen)
+    p.drawEllipse(0, 0, s, s)
+    dot = s * 0.14
+    p.setBrush(QBrush(QColor(C['primary'])))
+    p.drawEllipse(QRectF(c - dot, c - dot, dot * 2, dot * 2))
+    pen = QPen(QColor(C['primary'])); pen.setWidth(max(1, round(s / 13)))
+    pen.setCapStyle(Qt.RoundCap); p.setPen(pen); p.setBrush(Qt.NoBrush)
+    for i in range(6):
+        a = math.radians(i * 60)
+        x1 = c + math.cos(a) * s * 0.22; y1 = c + math.sin(a) * s * 0.22
+        x2 = c + math.cos(a) * s * 0.33; y2 = c + math.sin(a) * s * 0.33
+        p.drawLine(int(x1), int(y1), int(x2), int(y2))
+    p.end()
+    return px
 
 
 class _Card(QFrame):
@@ -739,6 +760,7 @@ class Window(QMainWindow):
         self._thread = HotkeyThread()
         self._thread.toggled.connect(self._on_toggled)
         self.setWindowTitle("Gamma Control")
+        self.setWindowIcon(QIcon(_sun_pixmap(64)))
         self.setMinimumSize(480, 540); self.resize(520, 660)
         self._build_ui(); self._build_tray()
         self.setStyleSheet(SHEET)
@@ -769,24 +791,7 @@ class Window(QMainWindow):
         # Small painted icon
         ic_lbl = QLabel()
         ic_lbl.setFixedSize(28, 28)
-        px = QPixmap(28, 28); px.fill(Qt.transparent)
-        pp = QPainter(px); pp.setRenderHint(QPainter.Antialiasing)
-        # Outer circle
-        pp.setBrush(QBrush(QColor(C['pri_cont']))); pp.setPen(Qt.NoPen)
-        pp.drawEllipse(0, 0, 28, 28)
-        # Inner sun-like symbol: rays + center dot
-        pp.setBrush(QBrush(QColor(C['primary']))); pp.setPen(Qt.NoPen)
-        pp.drawEllipse(10, 10, 8, 8)
-        pen = QPen(QColor(C['primary'])); pen.setWidth(2)
-        pen.setCapStyle(Qt.RoundCap); pp.setPen(pen)
-        import math
-        for i in range(6):
-            angle = math.radians(i * 60)
-            x1 = 14 + math.cos(angle) * 6; y1 = 14 + math.sin(angle) * 6
-            x2 = 14 + math.cos(angle) * 9; y2 = 14 + math.sin(angle) * 9
-            pp.drawLine(int(x1), int(y1), int(x2), int(y2))
-        pp.end()
-        ic_lbl.setPixmap(px)
+        ic_lbl.setPixmap(_sun_pixmap(28))
 
         ttl = QLabel("Gamma Control")
         ttl.setStyleSheet(f"color:{C['on_surf']};font-size:15px;font-weight:700;")
@@ -825,11 +830,7 @@ class Window(QMainWindow):
 
     def _build_tray(self):
         if not QSystemTrayIcon.isSystemTrayAvailable(): return
-        px = QPixmap(32, 32); px.fill(Qt.transparent)
-        p = QPainter(px); p.setRenderHint(QPainter.Antialiasing)
-        p.setBrush(QColor(C['primary'])); p.setPen(Qt.NoPen)
-        p.drawEllipse(4, 4, 24, 24); p.end()
-        self._tray = QSystemTrayIcon(QIcon(px), self)
+        self._tray = QSystemTrayIcon(QIcon(_sun_pixmap(32)), self)
         self._tray.setToolTip("Gamma Control")
         m = QMenu(); m.setStyleSheet(TRAY_SS)
         m.addAction("Show", self.show)

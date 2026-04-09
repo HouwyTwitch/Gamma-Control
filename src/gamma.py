@@ -369,6 +369,7 @@ class _Card(QFrame):
         self.setStyleSheet(
             f"QFrame#Card{{background:{C['surf']};border-radius:12px;"
             f"border:1px solid {C['outline']};}}"
+            f"QFrame#Card QWidget{{background:{C['surf']};}}"
             f"QFrame#Card QLabel{{background:{C['surf']};}}")
         self._lo = QVBoxLayout(self)
         self._lo.setContentsMargins(18, 16, 18, 16); self._lo.setSpacing(12)

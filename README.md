@@ -2,7 +2,7 @@
 
 A lightweight Windows tray application for toggling display gamma with a single hotkey. Built with PyQt5, featuring a dark modern GUI with per-monitor support.
 
-<img width="534" height="781" alt="image" src="https://github.com/user-attachments/assets/2011edd3-cfda-4cb6-8941-cdecb28a2c4b" /><img width="535" height="780" alt="image" src="https://github.com/user-attachments/assets/e4907f7f-e85a-42c0-a3fe-3af9bed1f3ff" />
+<img width="270" alt="image" src="https://github.com/user-attachments/assets/2011edd3-cfda-4cb6-8941-cdecb28a2c4b" /><img width="270" alt="image" src="https://github.com/user-attachments/assets/e4907f7f-e85a-42c0-a3fe-3af9bed1f3ff" />
 
 ---
 

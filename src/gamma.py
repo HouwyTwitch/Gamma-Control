@@ -53,31 +53,31 @@ _BASE = (os.path.dirname(sys.executable) if getattr(sys, 'frozen', False)
 CFG   = os.path.join(_BASE, 'config.ini')
 
 # ─── Palette: deep dark + violet accent ──────────────────────────────────────
+# Hierarchy (darkest → lightest):  surf_low < bg < surf < surf_high < surf_top
 C = dict(
-    # Backgrounds (darkest → lightest)
-    bg        = '#0E0D12',
-    surf_low  = '#111019',   # header / footer
-    surf      = '#16141E',   # card surface
-    surf_high = '#1E1C28',   # input / hover
-    surf_top  = '#272535',   # active / selected
+    bg        = '#100F18',   # page / scroll viewport background
+    surf_low  = '#0A0912',   # header / footer bar (darkest)
+    surf      = '#1E1B2C',   # card surface  — clearly lighter than bg
+    surf_high = '#272442',   # input fields / hover
+    surf_top  = '#312E52',   # active / selected state
 
     # Accent  — blue-violet
     primary   = '#7B68EE',   # main accent (medium slate blue)
     on_pri    = '#FFFFFF',
-    pri_cont  = '#2E2870',   # button / container bg
+    pri_cont  = '#2E2878',   # button / container bg
     on_pri_c  = '#C4BAFF',
 
     # Tonal secondary
-    sec_cont  = '#252048',
+    sec_cont  = '#252258',
     on_sec_c  = '#BDB5F0',
 
     # Text
     on_surf   = '#ECEAF6',   # primary text
-    on_surf_v = '#7E7A95',   # secondary text
+    on_surf_v = '#8480A0',   # secondary text (slightly brighter for readability)
 
     # Borders / dividers
-    outline   = '#3D3A52',   # standard border
-    out_v     = '#201E2E',   # subtle border / divider
+    outline   = '#3A3860',   # standard border
+    out_v     = '#1E1C30',   # subtle border / divider
 
     # Semantic
     success   = '#3DD68C',
@@ -513,6 +513,8 @@ class MainTab(QWidget):
         outer  = QVBoxLayout(self); outer.setContentsMargins(0, 0, 0, 0)
         scroll = QScrollArea(); scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setStyleSheet(f"QScrollArea{{background:{C['bg']};border:none;}}")
+        scroll.viewport().setStyleSheet(f"background:{C['bg']};")
         body   = QWidget(); body.setStyleSheet(f"background:{C['bg']};")
         lo     = QVBoxLayout(body)
         lo.setContentsMargins(20, 20, 20, 20); lo.setSpacing(16)
@@ -522,7 +524,8 @@ class MainTab(QWidget):
         hs = QScrollArea(); hs.setFixedHeight(130)
         hs.setFrameShape(QFrame.NoFrame)
         hs.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        hs.setStyleSheet("background:transparent;")
+        hs.setStyleSheet(f"QScrollArea{{background:{C['bg']};border:none;}}")
+        hs.viewport().setStyleSheet(f"background:{C['bg']};")
         mw  = QWidget(); mw.setStyleSheet(f"background:{C['bg']};")
         mlo = QHBoxLayout(mw)
         mlo.setContentsMargins(0, 0, 0, 0); mlo.setSpacing(10)
@@ -645,6 +648,8 @@ QDoubleSpinBox::up-button,QDoubleSpinBox::down-button{{
         outer  = QVBoxLayout(self); outer.setContentsMargins(0, 0, 0, 0)
         scroll = QScrollArea(); scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setStyleSheet(f"QScrollArea{{background:{C['bg']};border:none;}}")
+        scroll.viewport().setStyleSheet(f"background:{C['bg']};")
         body   = QWidget(); body.setStyleSheet(f"background:{C['bg']};")
         lo     = QVBoxLayout(body)
         lo.setContentsMargins(20, 20, 20, 20); lo.setSpacing(16)
@@ -932,9 +937,13 @@ QTabWidget#tabs QTabBar::tab:hover:!selected {{
     background: {C['surf_high']};
 }}
 
-/* ── Scrollbars ─────────────────────────────────────────────────────── */
+/* ── Scroll areas — explicit bg so viewport doesn't bleed OS colour ── */
 QScrollArea {{
-    border: none; background: transparent;
+    border: none;
+    background: {C['bg']};
+}}
+QScrollArea > QWidget > QWidget {{
+    background: {C['bg']};
 }}
 QScrollBar:vertical {{
     background: transparent; width: 5px; margin: 0;

@@ -907,6 +907,9 @@ QMainWindow, QWidget#root {{
 QWidget {{
     font-family: "Segoe UI", "Inter", "Roboto", sans-serif;
 }}
+QLabel {{
+    background: transparent;
+}}
 
 /* ── Tabs ──────────────────────────────────────────────────────────── */
 QTabWidget#tabs::pane {{
